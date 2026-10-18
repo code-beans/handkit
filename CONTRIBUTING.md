@@ -18,7 +18,7 @@ Thanks for helping. The most useful contribution right now is a test on a device
    cd "SDL3 Demo.pak" && ./app --smoke
    ```
 
-3. Open an issue with:
+3. Open a [device report](https://github.com/code-beans/handkit/issues/new?template=device-report.yml) with:
    - the device, firmware and firmware version,
    - both programs' full output (the demo prints the GPU driver, renderer and controller it found),
    - whether the buttons match their printed labels in the demo (X and Y switch modes; A and B pause and reset the 3D cube),
