@@ -64,8 +64,9 @@ Only one program can render at a time, so the firmware's frontend must release t
 | `profiles/` | Host profile for the handhelds |
 | `examples/demo/` | The demo app and its shaders |
 | `examples/minimal/` | Starter project copied by `tools/handkit init` |
-| `tests/` | Input self-test for the device |
+| `tests/` | Input self-test; `tests/device/` holds the device test package's scripts |
 | `tools/handkit` | Developer CLI: configure, build, init, deploy, run, logs |
+| `tools/package-release.sh` | Zips the builds for releases and the latest-build pre-release |
 | `conan.lock` | Pinned dependency versions and recipe revisions |
 
 ## Changing recipes or the SDK

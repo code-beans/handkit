@@ -42,3 +42,26 @@ hk_add_pak(handkit-minimal "SDK Minimal")
 
 add_executable(sdk-input-check tests/sdk_input.c)
 target_link_libraries(sdk-input-check PRIVATE Handkit::Handkit)
+
+# Device test package for testers: the demo, the input self-test and a script that writes a report.
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --always --dirty
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE HANDKIT_GIT_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
+if(NOT HANDKIT_GIT_VERSION)
+    set(HANDKIT_GIT_VERSION "unknown")
+endif()
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/handkit-version.txt" "${HANDKIT_GIT_VERSION}\n")
+set(HANDKIT_TEST_PAK "${CMAKE_BINARY_DIR}/dist/Handkit Test.pak")
+add_custom_target(
+    handkit-test-pak
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_BINARY_DIR}/dist/SDL3 Demo.pak" "${HANDKIT_TEST_PAK}"
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:sdk-input-check> "${HANDKIT_TEST_PAK}/sdk-input-check"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/tests/device/launch.sh" "${CMAKE_CURRENT_SOURCE_DIR}/tests/device/run-tests.sh" "${CMAKE_CURRENT_SOURCE_DIR}/tests/device/README.txt" "${HANDKIT_TEST_PAK}/"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/handkit-version.txt" "${HANDKIT_TEST_PAK}/VERSION"
+    DEPENDS handkit-demo-pak sdk-input-check
+    VERBATIM)

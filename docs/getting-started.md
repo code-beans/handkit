@@ -153,6 +153,15 @@ Pause NextUI while the demo runs (`kill -STOP`, then `kill -CONT` afterwards, as
 ./tools/handkit deploy --port 'build/Release/dist/My Application.pak'
 ```
 
+### Device test package
+
+```sh
+./tools/handkit build --target handkit-test-pak
+./tools/handkit deploy 'build/Release/dist/Handkit Test.pak'
+```
+
+`Handkit Test.pak` bundles the demo, the input self-test and a script that runs both and writes `handkit-report.txt` with system details. Releases ship it ready-made for testers; see [CONTRIBUTING.md](../CONTRIBUTING.md#report-a-device-result).
+
 ### Input self-test
 
 ```sh

@@ -4,25 +4,12 @@ Thanks for helping. The most useful contribution right now is a test on a device
 
 ## Report a device result
 
-1. Build the demo and the input self-test:
+1. Download the device test from the [latest build](https://github.com/code-beans/handkit/releases/tag/latest-build) or a [release](https://github.com/code-beans/handkit/releases): `handkit-test-nextui-*.zip` for NextUI or MinUI, `handkit-test-ports-*.zip` for knulli, muOS and other firmwares with a ports menu.
+2. Copy it to the SD card as its `README.txt` describes, and start **Handkit Test** from the handheld's menu. It runs the input self-test and the demo's smoke test, writes `handkit-report.txt` into its folder, then leaves the demo open.
+3. The demo then stays open for a minute. Check the buttons: X and Y switch modes; in the 3D mode, A pauses and B resets the cube. Start + Select exits sooner. The report records the buttons pressed.
+4. Open a [device report](https://github.com/code-beans/handkit/issues/new?template=device-report.yml), paste the report, and say whether the buttons matched their labels and whether anything looked wrong, such as a sideways picture, wrong colors or missing modes.
 
-   ```sh
-   ./tools/handkit build
-   ./tools/handkit build --target sdk-input-check
-   ```
-
-2. Copy `build/Release/dist/SDL3 Demo.pak` and `build/Release/sdk-input-check` to the device, and run both from a shell (ADB or SSH) while the firmware is at its main menu:
-
-   ```sh
-   ./sdk-input-check
-   cd "SDL3 Demo.pak" && ./app --smoke
-   ```
-
-3. Open a [device report](https://github.com/code-beans/handkit/issues/new?template=device-report.yml) with:
-   - the device, firmware and firmware version,
-   - both programs' full output (the demo prints the GPU driver, renderer and controller it found),
-   - whether the buttons match their printed labels in the demo (X and Y switch modes; A and B pause and reset the 3D cube),
-   - anything that looked wrong, such as a sideways picture, wrong colors or missing modes.
+To test your own build instead, run `./tools/handkit build --target handkit-test-pak` and copy `build/Release/dist/Handkit Test.pak` to the device.
 
 A failing run is as useful as a passing one. [docs/platforms.md](docs/platforms.md) lists the open questions for each firmware.
 

@@ -48,7 +48,9 @@ Today, porters do the left column by hand: a Debian chroot, a cross-compiler, a 
 
 ```text
 handkit/
-├── tools/handkit        Command-line tool: configure, build, init, deploy, run, logs
+├── tools/
+│   ├── handkit            Command-line tool: configure, build, init, deploy, run, logs
+│   └── package-release.sh Zips the builds for releases
 ├── sdk/                 The helper library apps link against
 │   ├── include/handkit/   Public C headers: runtime, input, menu, system, feedback
 │   ├── src/               Their implementation
@@ -62,7 +64,7 @@ handkit/
 ├── examples/
 │   ├── demo/              Demo app: software, OpenGL ES 2D and Vulkan 3D modes
 │   └── minimal/           Starter project that tools/handkit init copies
-├── tests/               Input self-test that runs on the handheld
+├── tests/               Input self-test, and the device test package for testers
 ├── docs/                Guides: getting started, API, platforms, architecture
 ├── conanfile.py         Dependencies of the demo and examples in this repository
 ├── conan.lock           Exact versions of every dependency, for reproducible builds
@@ -81,7 +83,16 @@ The packages in `recipes/` aren't published to a Conan remote yet; `tools/handki
 | Anbernic RG35XX, RG40XX, RG34XX, RG CubeXX (H700) | Allwinner H700 | knulli, muOS | **New, untested.** Mali backend and controller mapping written from the firmwares' source. Vulkan availability unknown. |
 | Anbernic H700 | Allwinner H700 | stock, MinUI | Not supported yet: these run a 32-bit system, Handkit builds 64-bit. |
 
-See [docs/platforms.md](docs/platforms.md) for the evidence behind each entry and what's still open. Reports from other devices are very welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+See [docs/platforms.md](docs/platforms.md) for the evidence behind each entry and what's still open.
+
+### Test your device
+
+No build needed. Download the device test from the [latest build](https://github.com/code-beans/handkit/releases/tag/latest-build) or a [release](https://github.com/code-beans/handkit/releases):
+
+- `handkit-test-nextui-*.zip` for TrimUI handhelds with NextUI or MinUI,
+- `handkit-test-ports-*.zip` for knulli, muOS and other firmwares with a ports menu.
+
+Copy it to the SD card as its `README.txt` describes and start **Handkit Test** from the handheld's menu. It runs the input self-test and the demo, writes `handkit-report.txt`, then leaves the demo open for a minute for checking the buttons. Attach the report to a [device report](https://github.com/code-beans/handkit/issues/new?template=device-report.yml); failed runs help as much as working ones.
 
 ## Quick start
 

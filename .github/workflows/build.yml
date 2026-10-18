@@ -20,7 +20,36 @@ jobs:
       - run: conan profile detect --force
       - run: ./tools/handkit build
       - run: ./tools/handkit build --target handkit-minimal-pak
+      - run: ./tools/handkit build --target handkit-test-pak
+      - name: Package downloads
+        if: matrix.os == 'ubuntu-24.04'
+        run: ./tools/package-release.sh "main-${GITHUB_SHA::7}" release
       - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-24.04'
         with:
-          name: handkit-apps-${{ matrix.os }}
-          path: build/Release/dist/
+          name: handkit-downloads
+          path: release/
+  latest:
+    # Keeps a "latest build" pre-release with the current main, for testers.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: latest-build
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: handkit-downloads
+          path: release
+      - name: Publish the latest-build pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-build --cleanup-tag --yes 2>/dev/null || true
+          gh release create latest-build release/* --prerelease --target "$GITHUB_SHA" \
+            --title "Latest build from main (${GITHUB_SHA::7})" \
+            --notes-file tests/device/release-notes.md

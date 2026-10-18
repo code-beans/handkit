@@ -94,10 +94,13 @@ def deploy(pak, serial=None, port=False):
     run(adb + ["shell", f"mkdir -p {q(device)}"])
     run(adb + ["push", pak / "app", device + "/app.new"])
     run(adb + ["shell", f'chmod +x {q(device+"/app.new")} && mv {q(device+"/app.new")} {q(device+"/app")}'])
-    run(adb + ["push", pak / "launch.sh", device + "/launch.sh"])
-    if (pak / "assets").exists():
-        run(adb + ["push", pak / "assets", device + "/"])
-    run(adb + ["shell", f'chmod +x {q(device+"/launch.sh")}'])
+    # Everything else in the pak: launch.sh, assets and any scripts or tools an app ships.
+    for entry in sorted(pak.iterdir()):
+        if entry.name == "app":
+            continue
+        run(adb + ["push", entry, device + "/"])
+        if entry.is_file() and os.access(entry, os.X_OK):
+            run(adb + ["shell", f"chmod +x {q(device + '/' + entry.name)}"])
     if port:
         run(adb + ["shell", f"mkdir -p {q(PORTS_EMU)}"])
         push_text(adb, PORTS_LAUNCH, PORTS_EMU + "/launch.sh")
