@@ -1,0 +1,16 @@
+{
+    "version": "0.5",
+    "requires": [
+        "handkit-sdl/3.2.10#7eb2b803e2bc89ab3672e51d168eb96d%1792341578.653643",
+        "handkit/0.4.0#73cc93db0746a4c3e9c1ed102f6f1f03%1792341578.803387"
+    ],
+    "build_requires": [
+        "spirv-tools/1.4.357.0#b6f5de6ef73ab1887deb9da902f8a719%1790162155.207",
+        "spirv-headers/1.4.357.0#9a9853ce0dd278c90c13c95ac1d02993%1789470990.613",
+        "handkit-toolchain/0.14.1#39170640e3411b33252b2011982f7dbd%1792341578.497797",
+        "glslang/1.4.357.0#01ff8058b143fa0b76cbcc98d1ae4d15%1789470986.25",
+        "cmake/4.4.4#fec9c7048fae91e03c31e59977cd9c12%1791276141.315"
+    ],
+    "python_requires": [],
+    "config_requires": []
+}

@@ -1,0 +1,8 @@
+[requires]
+handkit/0.4.0
+[tool_requires]
+handkit-toolchain/0.14.1
+[generators]
+CMakeDeps
+CMakeToolchain
+VirtualBuildEnv

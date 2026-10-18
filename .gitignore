@@ -1,0 +1,50 @@
+# Out-of-source CMake builds and packaged applications
+build/
+build-*/
+cmake-build-*/
+dist/
+/out/
+
+# CMake/Conan files generated locally (keep conan.lock tracked)
+CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+Testing/
+conan_toolchain.cmake
+conandeps_legacy.cmake
+conanbuild*.sh
+conanrun*.sh
+deactivate_conan*.sh
+/.conan2/
+
+# Compiled objects and libraries
+*.o
+*.obj
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+
+# Python environments and caches
+__pycache__/
+*.py[cod]
+.venv/
+/venv/
+.pytest_cache/
+
+# Optional local USB tools, logs and OS/editor clutter
+/tools/platform-tools/
+*.log
+.DS_Store
+._*
+Thumbs.db
+.idea/
+*.swp
+*.swo
+*~
+

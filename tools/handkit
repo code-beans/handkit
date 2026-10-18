@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Build, package and run Handkit applications without shell interpolation on the host."""
+
+import argparse
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parent.parent
+BUILD = ROOT / "build" / "Release"
+
+
+def run(args, cwd=ROOT):
+    print("+", shlex.join(map(str, args)), flush=True)
+    env = os.environ.copy()
+    # Prevent host Homebrew/compiler flags from contaminating ARM64 packages.
+    for key in ("CFLAGS", "CXXFLAGS", "LDFLAGS", "CPPFLAGS", "CC", "CXX", "AR", "RANLIB"):
+        env.pop(key, None)
+    subprocess.run(list(map(str, args)), cwd=cwd, env=env, check=True)
+
+
+def configure(update_lock=False):
+    if subprocess.run(["conan", "profile", "path", "default"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
+        run(["conan", "profile", "detect"])
+    for recipe in ("handkit-toolchain", "handkit-sdl", "handkit"):
+        run(["conan", "export", ROOT / "recipes" / recipe])
+    args = ["conan", "install", ".", "-pr:b", "default", "-pr:h", ROOT / "profiles/aarch64", "--build=missing"]
+    if update_lock or not (ROOT / "conan.lock").exists():
+        args += ["--lockfile=", "--lockfile-out=conan.lock"]
+    run(args)
+
+
+def cmake(*args):
+    generators = BUILD / "generators"
+    # Build-context tool paths (including glslang) are provided by Conan.
+    env_script = generators / "conanbuild.sh"
+    command = shlex.join(["cmake", *map(str, args)])
+    build_script = "\n".join(["set -e", f". {shlex.quote(str(env_script))}", command])
+    run(["sh", "-c", build_script])
+
+
+def adb_command(serial=None):
+    adb = os.environ.get("ADB") or shutil.which("adb")
+    local = ROOT / "tools/platform-tools/adb"
+    if not adb and local.exists():
+        adb = str(local)
+    if not adb:
+        raise RuntimeError("ADB is missing. Install Android platform-tools or set ADB to its executable.")
+    return [adb] + (["-s", serial] if serial else [])
+
+
+TOOLS = "/mnt/SDCARD/Tools/tg5040"
+# A port is listed as a game: NextUI runs the stub "<name>.sh" in the Ports
+# folder through PORTS.pak, and the stub starts the pak kept hidden beside it.
+PORTS_ROMS = "/mnt/SDCARD/Roms/Ports (PORTS)"
+PORTS_EMU = "/mnt/SDCARD/Emus/tg5040/PORTS.pak"
+PORTS_LAUNCH = """#!/bin/sh
+# Runs a native port: the "rom" is a shell script in the Ports folder.
+export HOME="$USERDATA_PATH"
+ROM="$1"
+cd "$(dirname "$ROM")" || exit 1
+exec sh "$ROM"
+"""
+
+
+def pak_dir(name, port=False):
+    return f"{PORTS_ROMS}/.ports/{name}" if port else f"{TOOLS}/{name}"
+
+
+def push_text(adb, text, device_path):
+    with tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False) as file:
+        file.write(text)
+    try:
+        run(adb + ["push", file.name, device_path])
+    finally:
+        os.unlink(file.name)
+    run(adb + ["shell", f"chmod +x {shlex.quote(device_path)}"])
+
+
+def deploy(pak, serial=None, port=False):
+    pak = Path(pak).resolve()
+    if not pak.is_dir() or not (pak / "app").is_file() or not (pak / "launch.sh").is_file():
+        raise RuntimeError("Pak must contain app and launch.sh; build its CMake -pak target first.")
+    if not pak.name.endswith(".pak"):
+        raise RuntimeError("Expected a .pak directory")
+    device = pak_dir(pak.name, port)
+    q = shlex.quote
+    adb = adb_command(serial)
+    run(adb + ["get-state"])
+    run(adb + ["shell", f"mkdir -p {q(device)}"])
+    run(adb + ["push", pak / "app", device + "/app.new"])
+    run(adb + ["shell", f'chmod +x {q(device+"/app.new")} && mv {q(device+"/app.new")} {q(device+"/app")}'])
+    run(adb + ["push", pak / "launch.sh", device + "/launch.sh"])
+    if (pak / "assets").exists():
+        run(adb + ["push", pak / "assets", device + "/"])
+    run(adb + ["shell", f'chmod +x {q(device+"/launch.sh")}'])
+    if port:
+        run(adb + ["shell", f"mkdir -p {q(PORTS_EMU)}"])
+        push_text(adb, PORTS_LAUNCH, PORTS_EMU + "/launch.sh")
+        stub = f'#!/bin/sh\ncd "$(dirname "$0")/.ports/{pak.name}" || exit 1\nexec ./launch.sh\n'
+        push_text(adb, stub, f"{PORTS_ROMS}/{pak.name[:-4]}.sh")
+
+
+parser = argparse.ArgumentParser(description=__doc__)
+sub = parser.add_subparsers(dest="command", required=True)
+p = sub.add_parser("configure")
+p.add_argument("--update-lock", action="store_true")
+p = sub.add_parser("build")
+p.add_argument("--target", default="handkit-demo-pak")
+p = sub.add_parser("deploy")
+p.add_argument("pak", nargs="?", default=str(BUILD / "dist/SDL3 Demo.pak"))
+p.add_argument("--serial")
+p.add_argument("--port", action="store_true", help="install as a game in the Ports folder instead of Tools")
+p = sub.add_parser("run")
+p.add_argument("--pak", default="SDL3 Demo.pak")
+p.add_argument("--seconds", type=int, default=5)
+p.add_argument("--smoke", action="store_true")
+p.add_argument("--serial")
+p.add_argument("--port", action="store_true")
+p = sub.add_parser("logs")
+p.add_argument("--pak", default="SDL3 Demo.pak")
+p.add_argument("--serial")
+p.add_argument("--port", action="store_true")
+p = sub.add_parser("init")
+p.add_argument("directory")
+args = parser.parse_args()
+try:
+    if args.command == "configure":
+        configure(args.update_lock)
+    elif args.command == "build":
+        configure()
+        cmake("-S", ROOT, "-B", BUILD, "-DCMAKE_TOOLCHAIN_FILE=" + str(BUILD / "generators/conan_toolchain.cmake"), "-DCMAKE_BUILD_TYPE=Release")
+        cmake("--build", BUILD, "--target", args.target, "-j", "8")
+    elif args.command == "deploy":
+        deploy(args.pak, args.serial, args.port)
+    elif args.command in ("run", "logs"):
+        if "/" in args.pak or not args.pak.endswith(".pak"):
+            raise RuntimeError("Use a .pak folder name without a path")
+        adb = adb_command(args.serial)
+        device = pak_dir(args.pak, args.port)
+        q = shlex.quote
+        if args.command == "logs":
+            run(adb + ["shell", "cat " + q(device + "/app.log")])
+        else:
+            if args.seconds < 1:
+                raise RuntimeError("USB runs require a positive time limit")
+            argv = "--smoke" if args.smoke else str(args.seconds)
+            # Require the launcher to own the screen; never stop a game or unrelated app.
+            script = "\n".join(["p=$(pidof nextui.elf)", 'if [ -z "$p" ]; then', '    echo "Return to NextUI before USB testing"', "    exit 1", "fi", "trap 'kill -CONT \"$p\"' EXIT HUP INT TERM", 'kill -STOP "$p"', q(device + "/app") + " " + argv])
+            run(adb + ["shell", script])
+    elif args.command == "init":
+        dest = Path(args.directory).resolve()
+        if dest.exists():
+            raise RuntimeError("Destination already exists; choose a new directory")
+        shutil.copytree(ROOT / "examples/minimal", dest)
+        print("Created", dest)
+        print("Use the SDK host profile and Conan CMakeToolchain to build this standalone project.")
+except (subprocess.CalledProcessError, RuntimeError) as error:
+    print(error, file=sys.stderr)
+    sys.exit(1)

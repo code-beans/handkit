@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.24)
+project(my_app C)
+find_package(Handkit CONFIG REQUIRED)
+add_executable(my-app main.c)
+target_link_libraries(my-app PRIVATE Handkit::Handkit)
+hk_add_pak(my-app "My Application")

@@ -1,0 +1,57 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build and publish, e.g. v0.4.0
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+jobs:
+  release:
+    # The paks are ARM64 Linux binaries, so the build host does not matter.
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Check tag matches SDK version
+        run: |
+          version=$(sed -n 's/^ *version = "\(.*\)"/\1/p' recipes/handkit/conanfile.py)
+          case "$TAG" in
+            "v$version" | "v$version"-*) ;;
+            *) echo "::error::Tag $TAG does not match handkit version $version"; exit 1 ;;
+          esac
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install conan==2.33.0 cmake==4.4.4
+      - run: conan profile detect --force
+      - run: ./tools/handkit build
+      - run: ./tools/handkit build --target handkit-minimal-pak
+      - run: ./tools/handkit build --target sdk-input-check
+      - name: Package release assets
+        run: |
+          mkdir release
+          # zip keeps the executable bits on app and launch.sh; extract into /mnt/SDCARD/Tools/tg5040/.
+          (cd build/Release/dist && zip -r "$GITHUB_WORKSPACE/release/sdl3-demo-$TAG.zip" "SDL3 Demo.pak")
+          (cd build/Release/dist && zip -r "$GITHUB_WORKSPACE/release/sdk-minimal-$TAG.zip" "SDK Minimal.pak")
+          tar -czf "release/sdk-input-check-$TAG-linux-arm64.tar.gz" -C build/Release sdk-input-check
+          (cd release && sha256sum * > SHA256SUMS)
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=(--title "Handkit $TAG" --generate-notes --verify-tag)
+          [[ "$TAG" == *-* ]] && flags+=(--prerelease)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+          else
+            gh release create "$TAG" "${flags[@]}" release/*
+          fi

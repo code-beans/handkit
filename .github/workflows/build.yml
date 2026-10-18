@@ -1,0 +1,26 @@
+name: SDK build
+on:
+  # Tags are built and published by release.yml.
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install conan==2.33.0 cmake==4.4.4
+      - run: conan profile detect --force
+      - run: ./tools/handkit build
+      - run: ./tools/handkit build --target handkit-minimal-pak
+      - uses: actions/upload-artifact@v4
+        with:
+          name: handkit-apps-${{ matrix.os }}
+          path: build/Release/dist/
