@@ -61,6 +61,12 @@ int hk_menu_add_choice(HkMenu *menu, const char *label, int *value, const char *
     return id;
 }
 
+void hk_menu_set_locked(HkMenu *menu, int id, const char *reason) {
+    if (id >= 0 && id < menu->item_count) {
+        menu->items[id].locked = reason;
+    }
+}
+
 void hk_menu_set_text_renderer(HkMenu *menu, HkMenuDrawText draw_text, HkMenuTextWidth text_width, void *user) {
     menu->draw_text = draw_text;
     menu->text_width = text_width;
@@ -108,6 +114,12 @@ HkMenuEvent hk_menu_update(HkMenu *menu, const HkInput *input) {
     }
     int id = menu->selected - 1;
     HkMenuItem *item = &menu->items[id];
+    if (item->locked) {
+        if (!accept && !(dpad_pressed & (SDL_HAT_LEFT | SDL_HAT_RIGHT))) return HK_MENU_EVENT_NONE;
+        menu->locked_ticks = SDL_GetTicks();
+        menu->activated = id;
+        return HK_MENU_EVENT_LOCKED;
+    }
     if (item->slider && (dpad_pressed & (SDL_HAT_LEFT | SDL_HAT_RIGHT))) {
         int direction = (dpad_pressed & SDL_HAT_RIGHT) ? 1 : -1;
         int value = SDL_clamp(*item->slider + direction * item->step, item->minimum, item->maximum);
@@ -197,6 +209,10 @@ void hk_menu_draw(const HkMenu *menu, SDL_Renderer *renderer) {
     SDL_GetRenderOutputSize(renderer, &width, &height);
     float ui = SDL_clamp(height / 480.0f, 0.8f, 2.5f);
     const SDL_Color white = {255, 255, 255, 255}, dark = {20, 20, 20, 255}, dim = {150, 150, 150, 255};
+    const SDL_Color greyed = {95, 95, 95, 255}, greyed_pill = {120, 120, 120, 255};
+    /* A pressed locked row shakes for a third of a second, fading out. */
+    float shake_t = (SDL_GetTicks() - menu->locked_ticks) / 1000.0f;
+    float shake = menu->locked_ticks && shake_t < 0.35f ? SDL_sinf(shake_t * 60) * 6 * ui * (1 - shake_t / 0.35f) : 0;
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 200);
     SDL_RenderFillRect(renderer, NULL);
@@ -212,7 +228,6 @@ void hk_menu_draw(const HkMenu *menu, SDL_Renderer *renderer) {
 
     int rows = row_count(menu);
     float list_width = SDL_min(width - 2 * margin, 420 * ui);
-    float list_x = margin;
     float list_y = SDL_max(margin + 40 * ui, (height - rows * row_height) * 0.5f);
     for (int row = 0; row < rows; row++) {
         const HkMenuItem *item = row > 0 && row < rows - 1 ? &menu->items[row - 1] : NULL;
@@ -227,20 +242,23 @@ void hk_menu_draw(const HkMenu *menu, SDL_Renderer *renderer) {
             value = item->choices[SDL_clamp(*item->choice, 0, item->choice_count - 1)];
         }
         bool selected = row == menu->selected;
+        bool locked = item && item->locked;
         float y = list_y + row * row_height;
         float text_y = y + (pill_height - text_size) * 0.5f;
+        float list_x = margin + (locked && selected ? shake : 0);
         if (selected) {
             float w = value ? list_width : text_width(menu, label, text_size) + 2 * pad;
-            fill_pill(renderer, list_x, y, w, pill_height, white);
+            fill_pill(renderer, list_x, y, w, pill_height, locked ? greyed_pill : white);
         }
-        draw_text(menu, renderer, list_x + pad, text_y, label, text_size, selected ? dark : white);
+        SDL_Color label_color = selected ? dark : locked ? greyed : white;
+        draw_text(menu, renderer, list_x + pad, text_y, label, text_size, label_color);
         if (value) {
             float value_x = list_x + list_width - pad - text_width(menu, value, text_size);
-            draw_text(menu, renderer, value_x, text_y, value, text_size, selected ? dark : dim);
+            draw_text(menu, renderer, value_x, text_y, value, text_size, selected ? dark : locked ? greyed : dim);
         }
         if (item && item->slider) {
             float bar_width = 100 * ui;
-            float bar_x = list_x + list_width - pad - 48 * ui - bar_width;
+            float bar_x = list_x + list_width - pad - 60 * ui - bar_width; /* room for "100%" */
             float fraction = SDL_clamp((float)(*item->slider - item->minimum) /
                                        (item->maximum - item->minimum), 0.0f, 1.0f);
             SDL_Color bar = selected ? dark : dim;
@@ -253,7 +271,13 @@ void hk_menu_draw(const HkMenu *menu, SDL_Renderer *renderer) {
 
     const char *hint = "LEFT/RIGHT ADJUST   B BACK";
     float hint_size = 11 * ui;
-    draw_text(menu, renderer, width - margin - text_width(menu, hint, hint_size), height - margin - hint_size, hint, hint_size, dim);
+    SDL_Color hint_color = dim;
+    int selected_item = menu->selected - 1;
+    if (selected_item >= 0 && selected_item < menu->item_count && menu->items[selected_item].locked) {
+        hint = menu->items[selected_item].locked;
+        hint_color = white;
+    }
+    draw_text(menu, renderer, width - margin - text_width(menu, hint, hint_size), height - margin - hint_size, hint, hint_size, hint_color);
 
     SDL_SetRenderScale(renderer, old_scale_x, old_scale_y);
     SDL_SetRenderDrawBlendMode(renderer, old_blend);

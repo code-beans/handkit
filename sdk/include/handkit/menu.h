@@ -33,6 +33,7 @@ typedef struct HkMenuItem {
     int *choice; /* index into choices */
     const char *const *choices;
     int choice_count;
+    const char *locked; /* why it can't be changed; NULL when usable */
 } HkMenuItem;
 
 typedef struct HkMenu {
@@ -46,6 +47,7 @@ typedef struct HkMenu {
     HkMenuDrawText draw_text;   /* NULL uses SDL's debug font */
     HkMenuTextWidth text_width;
     void *text_user;
+    Uint64 locked_ticks; /* when a locked item was last pressed, for its shake */
 } HkMenu;
 
 typedef enum HkMenuEvent {
@@ -54,7 +56,8 @@ typedef enum HkMenuEvent {
     HK_MENU_EVENT_CLOSED,  /* Continue, B or MENU */
     HK_MENU_EVENT_CHANGED, /* a toggle, slider or choice changed; the menu stays open */
     HK_MENU_EVENT_ACTION,  /* an action was chosen; the menu closes */
-    HK_MENU_EVENT_QUIT     /* Quit was chosen; the menu closes */
+    HK_MENU_EVENT_QUIT,    /* Quit was chosen; the menu closes */
+    HK_MENU_EVENT_LOCKED   /* a locked item was pressed; nothing changed */
 } HkMenuEvent;
 
 void hk_menu_init(HkMenu *menu, const char *title);
@@ -64,6 +67,9 @@ int hk_menu_add_slider(HkMenu *menu, const char *label, int *value, int minimum,
 int hk_menu_add_action(HkMenu *menu, const char *label);
 /* Steps through `count` named options; `choices` must outlive the menu. */
 int hk_menu_add_choice(HkMenu *menu, const char *label, int *value, const char *const *choices, int count);
+/* Greys an item out: it still shows its value but can't be changed, and
+ * pressing it shakes the row and shows `reason` in place of the hint line. */
+void hk_menu_set_locked(HkMenu *menu, int id, const char *reason);
 /* Draw menu text with the app's font instead of SDL's debug font. Pass NULLs to go back. */
 void hk_menu_set_text_renderer(HkMenu *menu, HkMenuDrawText draw_text, HkMenuTextWidth text_width, void *user);
 void hk_menu_open(HkMenu *menu);

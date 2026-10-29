@@ -100,6 +100,8 @@ Every menu has **Continue** and **Quit**; your items go between them. Each frame
 3. Handle the event: `HK_MENU_EVENT_CHANGED` (the menu stays open) and `HK_MENU_EVENT_ACTION` report the item in `menu.activated`; `HK_MENU_EVENT_QUIT` means exit.
 4. Draw your game, then `hk_menu_draw(&menu, renderer)`, then present.
 
+`hk_menu_set_locked(&menu, item, "AVAILABLE IN THE FULL GAME")` greys an item out, for example a feature a demo leaves out. It still shows its value but can't be changed. Pressing A or left/right on it shakes the row, returns `HK_MENU_EVENT_LOCKED` with the item in `menu.activated`, and shows the reason in place of the hint line while it is selected.
+
 The menu uses SDL's debug font. To use your app's font, call `hk_menu_set_text_renderer()` with a function that draws a string and one that measures it; `size` is the line height in pixels, with the text's top at `y`.
 
 ## System controls
