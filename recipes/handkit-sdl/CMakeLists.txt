@@ -60,6 +60,9 @@ set(SDL_LIBUDEV
 set(SDL_UNIX_CONSOLE_BUILD
     ON
     CACHE BOOL "" FORCE)
+# SDL's asserts and errors embed __FILE__: keep them relative, so no Conan
+# cache path (and with it the builder's home folder) ships in a game.
+add_compile_options("-ffile-prefix-map=${CMAKE_CURRENT_SOURCE_DIR}/=")
 add_subdirectory(sdl)
 target_sources(SDL3-static PRIVATE backend/sdl_handkit_video.c backend/sdl_handkit_vulkan.c)
 target_compile_definitions(SDL3-static PRIVATE SDL_VIDEO_DRIVER_PRIVATE=1)
