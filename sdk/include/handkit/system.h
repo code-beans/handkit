@@ -6,7 +6,10 @@
 extern "C" {
 #endif
 
-/* The system controls of a handheld app: Start + Select and the power button, and the
+/* On HANDKIT_DEVICE=arkos, only Start + Select is handled here; ArkOS owns
+ * power/volume/brightness. Overlay functions are no-ops. See ARKOS.md.
+ *
+ * The system controls of a handheld app: Start + Select and the power button, and the
  * volume/brightness display. While an app runs, NextUI leaves these to the app; its keymon
  * daemon only changes the levels. They arrive as the SDL events a desktop or phone sends, so
  * code that handles those works:

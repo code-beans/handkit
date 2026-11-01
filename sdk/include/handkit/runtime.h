@@ -15,7 +15,10 @@ typedef enum HkBackend {
     HK_BACKEND_VULKAN
 } HkBackend;
 
-/* Errors are reported through SDL_GetError. Destroy windows/renderers before SDL_Quit. */
+/* Errors are reported through SDL_GetError. Destroy windows/renderers before SDL_Quit.
+ * HANDKIT_DEVICE=arkos builds the KMS/DRM + GLES integration (see ARKOS.md).
+ * That target currently rejects SOFTWARE and VULKAN backends.
+ */
 bool hk_init(HkBackend backend);
 bool hk_display_size(int *width, int *height);
 bool hk_create_gles_renderer(SDL_Window **window, SDL_Renderer **renderer);

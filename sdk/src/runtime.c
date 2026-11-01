@@ -3,20 +3,42 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef HANDKIT_DEVICE_ARKOS
+#include "arkos_graphics.h"
+#endif
 
 bool hk_init(HkBackend backend) {
     if (backend < HK_BACKEND_SOFTWARE || backend > HK_BACKEND_VULKAN) {
         return SDL_SetError("Invalid Handkit backend");
     }
+#ifdef HANDKIT_DEVICE_ARKOS
+    if (backend != HK_BACKEND_GLES) {
+        return SDL_SetError("ArkOS currently supports the GLES backend only");
+    }
+    hk_arkos_select_graphics("/usr/lib/aarch64-linux-gnu");
+    SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "kmsdrm");
+#else
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, backend == HK_BACKEND_SOFTWARE ? "dummy" : "handkit");
+#endif
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
-    return SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD);
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD)) return false;
+#ifdef HANDKIT_DEVICE_ARKOS
+    SDL_HideCursor();
+#endif
+    return true;
 }
 
 bool hk_display_size(int *width, int *height) {
     if (!width || !height) {
         return SDL_SetError("Display size requires two output pointers");
     }
+#ifdef HANDKIT_DEVICE_ARKOS
+    const SDL_DisplayMode *mode = SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay());
+    if (!mode) return false;
+    *width = mode->w;
+    *height = mode->h;
+    return true;
+#else
     struct fb_var_screeninfo info;
     int fd = open("/dev/fb0", O_RDONLY);
     if (fd < 0) {
@@ -30,6 +52,7 @@ bool hk_display_size(int *width, int *height) {
     *width = info.xres;
     *height = info.yres;
     return true;
+#endif
 }
 
 bool hk_create_gles_renderer(SDL_Window **window, SDL_Renderer **renderer) {

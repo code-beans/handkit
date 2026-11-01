@@ -1,6 +1,6 @@
 # Handkit
 
-Build native **SDL3** apps and games for Linux handhelds such as the TrimUI Brick Pro and the Anbernic RG35XX family, from macOS or Linux, with one command.
+Build native **SDL3** apps and games for Linux handhelds including the TrimUI Brick Pro, Anbernic RG35XX family and R36S, from macOS or Linux. The default toolchain builds with one command; R36S / ArkOS uses a separate application build.
 
 Handkit gives you a pinned cross-compiler, SDL3 with display backends for the handhelds' GPU drivers, a small C helper library for controls, menus, sleep and rumble, and packaging for the handheld firmwares. Your app runs natively on the device, with OpenGL ES 2D or Vulkan 3D through SDL's GPU API.
 
@@ -25,22 +25,22 @@ The demo's three rendering modes on a TrimUI Brick Pro (1024×768), captured on 
 | Step | Handkit | PortMaster |
 | --- | :---: | :---: |
 | Write the app, with helpers for controls, menu, sleep, rumble | ✓ | |
-| Cross-compile for the handheld's ARM chip, no chroot or Docker | ✓ | |
-| Run SDL3 natively on the GPU, including Vulkan | ✓ | |
+| Cross-compile for the handheld's ARM chip (default toolchain needs no Docker) | ✓ | |
+| Run SDL3 natively on the GPU (rendering support varies by target) | ✓ | |
 | Read each firmware's controller layout | ✓ | ✓ |
 | Package the app | ✓ | |
 | Publish, download, install and update | | ✓ |
-| Launch on the device | NextUI `.pak` | ✓ |
+| Launch on the device | NextUI `.pak` or application-provided ArkOS script | ✓ |
 
-Today, porters do the left column by hand: a Debian chroot, a cross-compiler, a self-built SDL, a guessed glibc version, a launch script per firmware. Handkit replaces that with one reproducible build. Packaging Handkit apps as PortMaster ports is planned, so they reach every firmware PortMaster supports. Until then, apps ship as NextUI `.pak` folders.
+Today, porters do the left column by hand: a Debian chroot, a cross-compiler, a self-built SDL, a guessed glibc version, a launch script per firmware. Handkit replaces that with one reproducible build. Packaging Handkit apps as PortMaster ports is planned, so they reach every firmware PortMaster supports. The standard packaging produces NextUI `.pak` folders. ArkOS applications can instead ship an executable, assets and a Ports launcher script; PortMaster is not required. The ArkOS target is not part of the one-command toolchain above.
 
 ## What's included
 
 | Component | What it does |
 | --- | --- |
-| **Toolchain** | A pinned, checksum-verified Zig/Clang 19 cross-compiler that builds ARM64 Linux binaries against glibc 2.33, so they run on old and new firmwares alike. Runs on macOS and Linux, ARM64 and x86_64. |
+| **Toolchain** | A pinned, checksum-verified Zig/Clang 19 cross-compiler that builds ARM64 Linux binaries against glibc 2.33, for compatible firmwares. Original ArkOS needs a separate build against an older glibc baseline. Runs on macOS and Linux, ARM64 and x86_64. |
 | **SDL3** | SDL 3.2.10 with a fullscreen backend for the handhelds' framebuffer GPU drivers: PowerVR on TrimUI's A133P, Mali on Anbernic's H700. Statically linked; the firmware provides only glibc and the GPU driver. |
-| **Helper library** | Controls through SDL's gamepad mapping, a NextUI-style in-game menu, power button, sleep and the volume bar, LEDs and rumble. |
+| **Helper library** | Controls through SDL's gamepad mapping and a NextUI-style in-game menu. TrimUI integration adds power, sleep, volume, LEDs and rumble; the ArkOS target leaves system controls to the firmware. |
 | **Packaging** | `hk_add_pak()` in CMake builds a NextUI/MinUI `.pak` folder; `tools/handkit deploy` installs it over USB. |
 | **Starter and demo** | A minimal app to copy, and a demo that switches between software, OpenGL ES 2D and Vulkan 3D rendering. |
 
@@ -54,7 +54,10 @@ handkit/
 ├── sdk/                 The helper library apps link against
 │   ├── include/handkit/   Public C headers: runtime, input, menu, system, feedback
 │   ├── src/               Their implementation
-│   └── cmake/             hk_add_pak() and the .pak launcher script
+│   ├── cmake/             hk_add_pak() and the .pak launcher script
+│   ├── tools/             ArkOS controller configuration converter
+│   ├── tests/             ArkOS backend and controller conversion checks
+│   └── ARKOS.md           R36S / ArkOS integration guide
 ├── src/platform/        SDL3 display backend for the handhelds' GPU drivers
 ├── recipes/             Conan recipes for Handkit's packages
 │   ├── handkit-toolchain/ Downloads the pinned Zig compiler and sets it up for ARM64
@@ -81,11 +84,14 @@ The packages in `recipes/` aren't published to a Conan remote yet; `tools/handki
 | TrimUI Brick, Smart Pro | Allwinner A133P | NextUI, stock, CrossMix, spruce | Same system and drivers as the Brick Pro; not yet tested. |
 | TrimUI A133P handhelds | Allwinner A133P | knulli, muOS | Graphics stack and glibc checked from the firmwares' source; not yet tested. |
 | Anbernic RG35XX, RG40XX, RG34XX, RG CubeXX (H700) | Allwinner H700 | knulli, muOS | **New, untested.** Mali backend and controller mapping written from the firmwares' source. Vulkan availability unknown. |
+| R36S (original RK3326 hardware) | Rockchip RK3326 | ArkOS, dArkOSRE | **Tested on dArkOSRE:** game launch, volume and power button. KMS/DRM + OpenGL ES 2; separate build required. Original ArkOS remains untested. |
 | Anbernic H700 | Allwinner H700 | stock, MinUI | Not supported yet: these run a 32-bit system, Handkit builds 64-bit. |
 
 See [docs/platforms.md](docs/platforms.md) for the evidence behind each entry and what's still open.
 
 ### Test your device
+
+The prebuilt test packages below do not cover R36S / ArkOS. For that target, use the separate build described in [R36S / ArkOS](#r36s--arkos).
 
 No build needed. Download the device test from the [latest build](https://github.com/code-beans/handkit/releases/tag/latest-build) or a [release](https://github.com/code-beans/handkit/releases):
 
@@ -95,6 +101,8 @@ No build needed. Download the device test from the [latest build](https://github
 Copy it to the SD card as its `README.txt` describes and start **Handkit Test** from the handheld's menu. It runs the input self-test and the demo, writes `handkit-report.txt`, then leaves the demo open for a minute for checking the buttons. Attach the report to a [device report](https://github.com/code-beans/handkit/issues/new?template=device-report.yml); failed runs help as much as working ones.
 
 ## Quick start
+
+These commands use the default TrimUI toolchain and packaging. ArkOS uses the separate integration below.
 
 Install Python 3, [Conan](https://conan.io) 2.33+ and CMake 3.24+. For USB deployment, also install Android platform-tools (`adb`) and enable USB ADB on the handheld. On macOS:
 
@@ -120,10 +128,49 @@ Start your own app from the starter template:
 
 [docs/getting-started.md](docs/getting-started.md) walks through building, deploying and debugging your own app.
 
+## R36S / ArkOS
+
+The SDK can now be built with `HANDKIT_DEVICE=arkos`. It reuses Handkit's input,
+assets and menu APIs, selects SDL3's KMS/DRM display backend, and queries the
+screen size through SDL. Only `HK_BACKEND_GLES` is supported on this target.
+
+Applications supply an ARM64 Linux build of SDL3 with KMS/DRM and OpenGL ES 2
+enabled, then add the SDK to their CMake project:
+
+```cmake
+# SDL3::SDL3 must already exist, or SDL3 must be discoverable by find_package.
+set(HANDKIT_DEVICE arkos CACHE STRING "" FORCE)
+add_subdirectory(path/to/handkit/sdk handkit)
+target_link_libraries(my_app PRIVATE Handkit::Handkit)
+```
+
+Build against glibc 2.28 or older for original ArkOS compatibility; the default
+Handkit glibc 2.33 toolchain is not suitable. The first integration, Merge Up
+Blast, builds SDL3, Box2D and Handkit in an ARM64 Debian Buster Docker container.
+ArkOS supplies the Mali EGL/GLES, GBM/DRM and audio drivers.
+
+Package the executable and assets alongside an application launcher in ArkOS's
+Ports directory. No PortMaster runtime is needed. The SDK's
+`tools/arkos-gamepads.py` converts EmulationStation's controller configuration
+into an SDL mapping file; set `SDL_GAMECONTROLLERCONFIG_FILE` before launch.
+
+Start + Select emits a quit event through `hk_system_update()`. ArkOS retains
+ownership of power, volume and brightness. RGB LEDs, rumble and the system
+overlay are unsupported. Applications can use Select for their pause menu
+because the R36S Fn button varies by firmware.
+
+ARM64 compilation, virtual-controller input, menu, quit-chord and launcher
+checks have passed. A user confirmed game launch, volume and power-button behavior
+on an R36S running dArkOSRE. Other controls, original ArkOS and clone variants
+need further verification. Handkit selects matching Mali EGL/GLES libraries when
+the firmware's default EGL alias points elsewhere, without changing system files.
+See [the ArkOS integration guide](sdk/ARKOS.md) for setup and test instructions.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md): requirements, the demo, your first app, packaging, running and debugging.
 - [API guide](docs/api.md): rendering, input, the in-game menu, system controls, LEDs and rumble.
+- [ArkOS integration](sdk/ARKOS.md): the R36S target, controller mappings and backend tests.
 - [Platforms](docs/platforms.md): devices, firmwares, support tiers and the evidence for each.
 - [Architecture](docs/architecture.md): how the toolchain, SDL backend and packages fit together, and how to maintain them.
 - [Contributing](CONTRIBUTING.md): reporting device results, adding a controller, code style, releases.
