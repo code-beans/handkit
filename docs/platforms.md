@@ -1,6 +1,6 @@
 # Platforms
 
-Handkit builds one ARM64 binary per app. At start-up the app picks the GPU backend from the driver it finds, reads the controller through SDL's gamepad mapping, and uses whichever LED and rumble hardware is present. So supporting a device mostly means checking that its firmware provides what that binary needs:
+The default Handkit toolchain builds one ARM64 binary per app for framebuffer targets. R36S / ArkOS uses a separate source integration described below. At start-up the app picks the GPU backend from the driver it finds, reads the controller through SDL's gamepad mapping, and uses whichever LED and rumble hardware is present. So supporting a device mostly means checking that its firmware provides what that binary needs:
 
 1. a 64-bit ARM (aarch64) system with **glibc 2.33 or newer**,
 2. a GPU driver Handkit has a backend for: PowerVR or Mali, using the framebuffer without a window system,
@@ -21,6 +21,7 @@ Handkit builds one ARM64 binary per app. At start-up the app picks the GPU backe
 | Chip | GPU | Driver | Handkit backend | OpenGL ES | Vulkan |
 | --- | --- | --- | --- | --- | --- |
 | Allwinner A133P | PowerVR GE8300 | Vendor fbdev driver, no window system | PowerVR: EGL native window `0` | Tested | Tested (`VK_KHR_display`) |
+| Rockchip RK3326 | Mali-G31 | Vendor GBM driver | SDL3 KMS/DRM, selected by the ArkOS helper target | Game confirmed on dArkOSRE | Not supported by this target |
 | Allwinner H700 | Mali-G31 | Vendor `mali-g31-fbdev` driver | Mali: EGL native window is a pointer to `{width, height}` | Written, untested | Unknown: the driver ships a Vulkan 1.0 ICD; `VK_KHR_display` support unconfirmed |
 
 The backend chooses Mali when the EGL vendor string contains "ARM", and PowerVR otherwise.
@@ -55,12 +56,33 @@ Device notes:
 - **LEDs:** the RG40XX and RG CubeXX have RGB lights behind a serial microcontroller, which Handkit doesn't drive; `hk_led_set()` returns `false`.
 - **Volume bar:** needs the firmware's `libmsettings.so`, which knulli and muOS don't have, so no bar is shown.
 
+## R36S / RK3326: ArkOS and dArkOSRE
+
+This uses `HANDKIT_DEVICE=arkos`, SDL3's KMS/DRM + GLES backend and an
+application-supplied ARM64 build against glibc 2.28 or older for original ArkOS.
+It is not built by the default Conan framebuffer profile.
+
+A user has confirmed Merge Up Blast launch, Start + Select, volume and power-button
+behavior on dArkOSRE (Linux 4.4.189). This is application-level device testing;
+the standard three-mode Handkit device test has not been run on this target.
+Original ArkOS and clone variants remain unverified.
+
+- Driver selection uses matching Mali EGL/GLES libraries if the firmware's
+  `libEGL.so.1` points elsewhere. No system symlinks are changed.
+- The `GO-Super Gamepad` fallback maps Select/Start to raw buttons 12/13, based
+  on dArkOSRE's `/etc/emulationstation/es_input.cfg`. User mappings take priority.
+- Power, brightness and volume remain owned by the firmware. No RGB or rumble
+  support is exposed by this target.
+
+See [ArkOS integration](arkos.md) for the build and launcher requirements.
+
 ## Packaging per firmware
 
 | Firmware | Format | Handkit support |
 | --- | --- | --- |
 | NextUI, MinUI | `.pak` folder in `Tools/<platform>/` or Ports | `hk_add_pak()`, `tools/handkit deploy` |
-| muOS, knulli, ArkOS, ROCKNIX and more | PortMaster port | Planned |
+| ArkOS, dArkOSRE | Executable, assets and shell launcher in Ports | Application-provided launcher; SDK supplies controller conversion, no PortMaster required |
+| muOS, knulli, ROCKNIX and more | PortMaster port | Planned |
 | Stock TrimUI, CrossMix | `Apps/<name>/` with `config.json` | Not yet |
 
 Until PortMaster packaging lands, run an app on muOS or knulli by copying its `.pak` folder to the SD card and starting its `launch.sh` from the firmware's ports or scripts menu.

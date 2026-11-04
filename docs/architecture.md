@@ -13,9 +13,9 @@ Handkit is three Conan packages plus one from ConanCenter.
 | `handkit/0.4.0` | Host | The helper library (`Handkit::Handkit`) and the `hk_add_pak()` CMake module |
 | `glslang/1.4.357.0` | Build | Native shader compiler for the demo's Vulkan shaders |
 
-The **build context** runs on your computer; the **host context** is the handheld. The host profile [`profiles/aarch64`](../profiles/aarch64) selects Linux, `armv8`, Clang 19 and glibc 2.33, which fits every supported handheld.
+The **build context** runs on your computer; the **host context** is the handheld. The host profile [`profiles/aarch64`](../profiles/aarch64) selects Linux, `armv8`, Clang 19 and glibc 2.33, which fits the default framebuffer targets. ArkOS needs a separate toolchain with an older glibc baseline; it is currently integrated from source rather than through these Conan packages.
 
-Apps link statically against SDL3 and the helper library. At run time they need only glibc and the firmware's GPU driver, which is loaded with `dlopen` and never redistributed.
+Apps link statically against SDL3 and the helper library. At run time the firmware supplies system and GPU libraries, which are loaded dynamically and never redistributed. The ArkOS target also uses the firmware's DRM/GBM and ALSA libraries.
 
 ## Display backend
 
@@ -33,12 +33,25 @@ The handhelds' GPU drivers draw straight to the framebuffer, without X11, Waylan
 
 Only one program can render at a time, so the firmware's frontend must release the screen while an app runs. NextUI does this for Tools and Ports. For USB testing, `tools/handkit run` pauses NextUI and resumes it afterwards.
 
+## ArkOS integration
+
+`HANDKIT_DEVICE=arkos` selects an alternative helper-library implementation in
+`sdk/CMakeLists.txt`. It uses SDL3's existing `kmsdrm` driver through public SDL
+APIs. It does not add a driver to `src/platform/` or depend on SDL internals.
+The application must supply SDL3 with KMS/DRM and GLES enabled and a compatible
+ARM64 toolchain. The default Conan SDL and glibc 2.33 toolchain are unchanged.
+
+The private `sdk/src/arkos_graphics.c` helper selects matching Mali EGL/GLES
+libraries with SDL hints. This is firmware startup policy, not display-driver
+implementation. Its declaration stays private; tests link the same compiled
+code as applications. Explicit application/environment hints take precedence.
+
 ## Input mapping
 
 `hk_input_update()` opens the first controller and reads it through `SDL_Gamepad` whenever SDL has a mapping for it. Mappings are added in increasing priority:
 
 1. SDL's built-in database (the TrimUI controller reports itself as an Xbox 360 pad),
-2. Handkit's additions, through `SDL_AddGamepadMapping()`: the stock TrimUI controller by GUID, with F1/F2 and Home, and controllers matched by name, such as the H700's "Deeplay-keys",
+2. Handkit's additions, through `SDL_AddGamepadMapping()`: the stock TrimUI controller by GUID, with F1/F2 and Home, and controllers matched by name, such as the H700's "Deeplay-keys" and dArkOSRE's "GO-Super Gamepad",
 3. `SDL_GAMECONTROLLERCONFIG` from the environment, which SDL ranks above any mapping added by the API.
 
 `HkButton` names are translated to gamepad positions (A is east, B is south). Without a mapping, the enum values are used as raw joystick button numbers, which match TrimUI's stock controller.
@@ -50,6 +63,9 @@ Only one program can render at a time, so the firmware's frontend must release t
 - `runtime.c`: start-up, display size, the GLES helper, asset paths, input.
 - `menu.c`: the in-game menu.
 - `system.c`: Start + Select, power button and sleep, and the volume bar. Power key events are read straight from `/dev/input` without grabbing the device, so the firmware still sees the volume keys. Volume and brightness levels come from the firmware's `libmsettings.so` through `dlopen`.
+- `system_arkos.c`: Start + Select only; firmware owns power/volume/brightness, so overlay functions are no-ops.
+- `feedback_unsupported.c`: the feedback API for targets without exposed RGB/rumble support, selected separately from system handling.
+- `arkos_graphics.c`: ArkOS Mali library selection before SDL initialization, declared in a private header.
 - `feedback.c`: LEDs through `/sys/class/led_anim/`, and rumble through whichever motor switch exists: GPIO 227 on A133P, `axp2202-battery/moto` on H700. A background thread times the pulses.
 
 ## Repository layout
@@ -58,16 +74,23 @@ Only one program can render at a time, so the firmware's frontend must release t
 | --- | --- |
 | `sdk/include/handkit/` | Public headers |
 | `sdk/src/` | Helper library |
-| `sdk/cmake/` | `hk_add_pak()` and the `.pak` launcher template |
+| `sdk/cmake/` | Installed packaging helpers: `hk_add_pak()`, `.pak` launcher and ArkOS controller converter |
 | `src/platform/` | SDL display backend |
 | `recipes/` | Conan recipes for the toolchain, SDL and the SDK |
 | `profiles/` | Host profile for the handhelds |
 | `examples/demo/` | The demo app and its shaders |
 | `examples/minimal/` | Starter project copied by `tools/handkit init` |
-| `tests/` | Input self-test; `tests/device/` holds the device test package's scripts |
+| `tests/` | Separate CMake project for library checks, Python controller conversion tests and `tests/device/` scripts |
 | `tools/handkit` | Developer CLI: configure, build, init, deploy, run, logs |
 | `tools/package-release.sh` | Zips the builds for releases and the latest-build pre-release |
 | `conan.lock` | Pinned dependency versions and recipe revisions |
+
+Tests and documentation stay outside the exported SDK sources. The separate
+`tests/CMakeLists.txt` builds the SDK against a supplied SDL3 package, without
+adding test targets or Python requirements to applications that embed the SDK.
+The ArkOS controller converter is a deployed packaging asset, so it lives in
+`sdk/cmake/` alongside the existing launcher and is installed with those helpers.
+See [ArkOS integration](arkos.md) for configuration and test commands.
 
 ## Changing recipes or the SDK
 

@@ -16,7 +16,7 @@ typedef enum HkBackend {
 } HkBackend;
 
 /* Errors are reported through SDL_GetError. Destroy windows/renderers before SDL_Quit.
- * HANDKIT_DEVICE=arkos builds the KMS/DRM + GLES integration (see ARKOS.md).
+ * HANDKIT_DEVICE=arkos builds the KMS/DRM + GLES integration (see docs/arkos.md).
  * That target currently rejects SOFTWARE and VULKAN backends.
  */
 bool hk_init(HkBackend backend);

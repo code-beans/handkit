@@ -13,7 +13,7 @@ class Handkit(ConanFile):
     description = "Handkit: SDL3 display integration and application helpers for Linux handhelds"
 
     def export_sources(self):
-        copy(self, "*", os.path.join(self.recipe_folder, "..", "..", "sdk"), self.export_sources_folder)
+        copy(self, "*", os.path.join(self.recipe_folder, "..", "..", "sdk"), self.export_sources_folder, excludes=("*__pycache__*", "*.pyc", ".DS_Store"))
 
     def configure(self):
         self.settings.rm_safe("compiler.cppstd")

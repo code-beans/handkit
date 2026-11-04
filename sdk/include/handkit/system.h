@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 /* On HANDKIT_DEVICE=arkos, only Start + Select is handled here; ArkOS owns
- * power/volume/brightness. Overlay functions are no-ops. See ARKOS.md.
+ * power/volume/brightness. Overlay functions are no-ops. See docs/arkos.md.
  *
  * The system controls of a handheld app: Start + Select and the power button, and the
  * volume/brightness display. While an app runs, NextUI leaves these to the app; its keymon
@@ -35,8 +35,8 @@ extern "C" {
 
 typedef enum HkSystemEvent {
     HK_SYSTEM_EVENT_NONE,
-    HK_SYSTEM_EVENT_SLEEP,    /* power tapped: pause and close audio; the next update sleeps */
-    HK_SYSTEM_EVENT_WAKE,     /* back from sleep: reopen audio */
+    HK_SYSTEM_EVENT_SLEEP,     /* power tapped: pause and close audio; the next update sleeps */
+    HK_SYSTEM_EVENT_WAKE,      /* back from sleep: reopen audio */
     HK_SYSTEM_EVENT_POWER_OFF, /* power held: save and exit; SDL_EVENT_QUIT is pushed once */
     HK_SYSTEM_EVENT_QUIT       /* Start + Select: save and exit to NextUI */
 } HkSystemEvent;

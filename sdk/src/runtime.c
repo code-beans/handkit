@@ -21,7 +21,9 @@ bool hk_init(HkBackend backend) {
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, backend == HK_BACKEND_SOFTWARE ? "dummy" : "handkit");
 #endif
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD)) return false;
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD)) {
+        return false;
+    }
 #ifdef HANDKIT_DEVICE_ARKOS
     SDL_HideCursor();
 #endif
@@ -34,7 +36,9 @@ bool hk_display_size(int *width, int *height) {
     }
 #ifdef HANDKIT_DEVICE_ARKOS
     const SDL_DisplayMode *mode = SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay());
-    if (!mode) return false;
+    if (!mode) {
+        return false;
+    }
     *width = mode->w;
     *height = mode->h;
     return true;
@@ -120,6 +124,11 @@ static const struct {
     const char *name;
     const char *mapping;
 } named_mappings[] = {
+    /* dArkOSRE R36S: /etc/emulationstation/es_input.cfg. Match the runtime
+     * GUID by name when no firmware/user SDL mapping is available. */
+    {"GO-Super Gamepad", "a:b0,b:b1,x:b3,y:b2,leftshoulder:b4,rightshoulder:b5,lefttrigger:b6,righttrigger:b7,"
+                         "dpup:b8,dpdown:b9,dpleft:b10,dpright:b11,back:b12,start:b13,leftstick:b14,rightstick:b15,"
+                         "leftx:a0,lefty:a1,rightx:a2,righty:a3,"},
     /* Anbernic H700 stock kernel. Numbering from MinUI's rg35xxplus platform; not yet checked on a device. */
     {"Deeplay-keys", "a:b1,b:b0,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,back:b6,start:b7,guide:b8,lefttrigger:b9,righttrigger:b10,"
                      "dpup:b13,dpleft:b14,dpright:b15,dpdown:b16,leftx:a0,lefty:a1,rightx:a2,righty:a3,"},
@@ -208,8 +217,8 @@ static bool read_button(const HkInput *input, int button) {
 }
 
 static Uint8 gamepad_dpad(SDL_Gamepad *gamepad) {
-    return (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP) ? SDL_HAT_UP : 0) | (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT) ? SDL_HAT_RIGHT : 0) |
-           (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN) ? SDL_HAT_DOWN : 0) | (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT) ? SDL_HAT_LEFT : 0);
+    return (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP) ? SDL_HAT_UP : 0) | (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT) ? SDL_HAT_RIGHT : 0) | (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN) ? SDL_HAT_DOWN : 0) |
+           (SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT) ? SDL_HAT_LEFT : 0);
 }
 
 void hk_input_update(HkInput *input) {

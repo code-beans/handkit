@@ -54,10 +54,7 @@ handkit/
 ├── sdk/                 The helper library apps link against
 │   ├── include/handkit/   Public C headers: runtime, input, menu, system, feedback
 │   ├── src/               Their implementation
-│   ├── cmake/             hk_add_pak() and the .pak launcher script
-│   ├── tools/             ArkOS controller configuration converter
-│   ├── tests/             ArkOS backend and controller conversion checks
-│   └── ARKOS.md           R36S / ArkOS integration guide
+│   └── cmake/             Packaging helpers, launchers and ArkOS controller converter
 ├── src/platform/        SDL3 display backend for the handhelds' GPU drivers
 ├── recipes/             Conan recipes for Handkit's packages
 │   ├── handkit-toolchain/ Downloads the pinned Zig compiler and sets it up for ARM64
@@ -67,7 +64,7 @@ handkit/
 ├── examples/
 │   ├── demo/              Demo app: software, OpenGL ES 2D and Vulkan 3D modes
 │   └── minimal/           Starter project that tools/handkit init copies
-├── tests/               Input self-test, and the device test package for testers
+├── tests/               Library checks, controller conversion tests and the device test package
 ├── docs/                Guides: getting started, API, platforms, architecture
 ├── conanfile.py         Dependencies of the demo and examples in this repository
 ├── conan.lock           Exact versions of every dependency, for reproducible builds
@@ -84,7 +81,7 @@ The packages in `recipes/` aren't published to a Conan remote yet; `tools/handki
 | TrimUI Brick, Smart Pro | Allwinner A133P | NextUI, stock, CrossMix, spruce | Same system and drivers as the Brick Pro; not yet tested. |
 | TrimUI A133P handhelds | Allwinner A133P | knulli, muOS | Graphics stack and glibc checked from the firmwares' source; not yet tested. |
 | Anbernic RG35XX, RG40XX, RG34XX, RG CubeXX (H700) | Allwinner H700 | knulli, muOS | **New, untested.** Mali backend and controller mapping written from the firmwares' source. Vulkan availability unknown. |
-| R36S (original RK3326 hardware) | Rockchip RK3326 | ArkOS, dArkOSRE | **Tested on dArkOSRE:** game launch, volume and power button. KMS/DRM + OpenGL ES 2; separate build required. Original ArkOS remains untested. |
+| R36S (original RK3326 hardware) | Rockchip RK3326 | ArkOS, dArkOSRE | **Tested on dArkOSRE:** game launch, Start + Select, volume and power button. KMS/DRM + OpenGL ES 2; separate build required. Original ArkOS remains untested. |
 | Anbernic H700 | Allwinner H700 | stock, MinUI | Not supported yet: these run a 32-bit system, Handkit builds 64-bit. |
 
 See [docs/platforms.md](docs/platforms.md) for the evidence behind each entry and what's still open.
@@ -151,7 +148,7 @@ ArkOS supplies the Mali EGL/GLES, GBM/DRM and audio drivers.
 
 Package the executable and assets alongside an application launcher in ArkOS's
 Ports directory. No PortMaster runtime is needed. The SDK's
-`tools/arkos-gamepads.py` converts EmulationStation's controller configuration
+`sdk/cmake/arkos-gamepads.py` converts EmulationStation's controller configuration
 into an SDL mapping file; set `SDL_GAMECONTROLLERCONFIG_FILE` before launch.
 
 Start + Select emits a quit event through `hk_system_update()`. ArkOS retains
@@ -160,17 +157,17 @@ overlay are unsupported. Applications can use Select for their pause menu
 because the R36S Fn button varies by firmware.
 
 ARM64 compilation, virtual-controller input, menu, quit-chord and launcher
-checks have passed. A user confirmed game launch, volume and power-button behavior
+checks have passed. A user confirmed game launch, Start + Select, volume and power-button behavior
 on an R36S running dArkOSRE. Other controls, original ArkOS and clone variants
 need further verification. Handkit selects matching Mali EGL/GLES libraries when
 the firmware's default EGL alias points elsewhere, without changing system files.
-See [the ArkOS integration guide](sdk/ARKOS.md) for setup and test instructions.
+See [the ArkOS integration guide](docs/arkos.md) for setup and test instructions.
 
 ## Documentation
 
 - [Getting started](docs/getting-started.md): requirements, the demo, your first app, packaging, running and debugging.
 - [API guide](docs/api.md): rendering, input, the in-game menu, system controls, LEDs and rumble.
-- [ArkOS integration](sdk/ARKOS.md): the R36S target, controller mappings and backend tests.
+- [ArkOS integration](docs/arkos.md): the R36S target, controller mappings and backend tests.
 - [Platforms](docs/platforms.md): devices, firmwares, support tiers and the evidence for each.
 - [Architecture](docs/architecture.md): how the toolchain, SDL backend and packages fit together, and how to maintain them.
 - [Contributing](CONTRIBUTING.md): reporting device results, adding a controller, code style, releases.
