@@ -19,9 +19,11 @@ bool hk_init(HkBackend backend) {
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "kmsdrm");
 #else
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, backend == HK_BACKEND_SOFTWARE ? "dummy" : "handkit");
-    /* SDL's OSS backend opens the codec at its 44.1 kHz default, which the
-     * A133P codec plays about 9% fast and high. The firmware's own ALSA dmix
-     * runs it at 48 kHz, so ask for that unless the app chose a rate. */
+    /* SDL's OSS backend opens the codec directly at its 44.1 kHz default,
+     * which the A133P codec plays about 9% fast and high. The TrimUI
+     * firmware's own ALSA dmix runs it at 48 kHz, and muOS standardizes the
+     * H700 on 48 kHz too, so ask for that unless the app chose a rate.
+     * ArkOS goes through ALSA, which converts rates itself. */
     if (!SDL_GetHint(SDL_HINT_AUDIO_FREQUENCY)) {
         SDL_SetHint(SDL_HINT_AUDIO_FREQUENCY, "48000");
     }

@@ -6,7 +6,7 @@ Functions report failures by returning `false` and setting `SDL_GetError()`, lik
 
 ## Start up and render
 
-Call `hk_init()` with the rendering backend you want, instead of `SDL_Init()`. It selects Handkit's display driver and initializes SDL's video, joystick and gamepad subsystems. On TrimUI it also sets SDL's default audio rate to 48 kHz, unless `SDL_HINT_AUDIO_FREQUENCY` is already set, because the codec plays SDL's 44.1 kHz default about 9% fast and high. Call it before opening an audio device.
+Call `hk_init()` with the rendering backend you want, instead of `SDL_Init()`. It selects Handkit's display driver and initializes SDL's video, joystick and gamepad subsystems. On the TrimUI A133P and Anbernic H700 it also sets SDL's default audio rate to 48 kHz, unless `SDL_HINT_AUDIO_FREQUENCY` is already set: audio goes straight to the codec over OSS, and the A133P plays SDL's 44.1 kHz default about 9% fast and high. ArkOS audio goes through ALSA and is left alone. Call it before opening an audio device.
 
 | Backend | Use for | How it draws |
 | --- | --- | --- |
