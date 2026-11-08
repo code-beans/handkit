@@ -19,6 +19,12 @@ bool hk_init(HkBackend backend) {
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "kmsdrm");
 #else
     SDL_SetHint(SDL_HINT_VIDEO_DRIVER, backend == HK_BACKEND_SOFTWARE ? "dummy" : "handkit");
+    /* SDL's OSS backend opens the codec at its 44.1 kHz default, which the
+     * A133P codec plays about 9% fast and high. The firmware's own ALSA dmix
+     * runs it at 48 kHz, so ask for that unless the app chose a rate. */
+    if (!SDL_GetHint(SDL_HINT_AUDIO_FREQUENCY)) {
+        SDL_SetHint(SDL_HINT_AUDIO_FREQUENCY, "48000");
+    }
 #endif
     SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD)) {
